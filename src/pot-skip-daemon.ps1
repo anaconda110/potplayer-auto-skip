@@ -221,7 +221,7 @@ function Get-Rules {
     $rules = @()
     $eprules = @()
     foreach ($sec in $ini.Keys) {
-        if ($sec -ieq 'global' -or $sec -ieq 'paths') { continue }
+        if ($sec -ieq 'global' -or $sec -ieq 'paths' -or $sec -ieq 'hotkeys') { continue }
         $s = $ini[$sec]
         $op = Get-TimeSeconds $s['op_end']
         $os = Get-TimeSeconds $s['op_start']

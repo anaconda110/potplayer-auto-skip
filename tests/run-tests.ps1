@@ -41,6 +41,10 @@ op_end = 180
 
 [Show B]
 ed_start = 21:30
+
+[hotkeys]
+op_end = Ctrl+Alt+O
+ed_start = Ctrl+Alt+E
 '@
 [IO.File]::WriteAllText($fixture, $body, (New-Object System.Text.UTF8Encoding($true)))
 $script:IniPath = $fixture
