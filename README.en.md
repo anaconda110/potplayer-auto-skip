@@ -8,11 +8,8 @@ Per-series automatic intro/outro skipping for PotPlayer, with optional cold-open
 
 PotPlayer's built-in "skip playback" only supports one global fixed duration, must be re-entered for every show, and always cuts from 0:00 — destroying the cold open. This project talks to PotPlayer's official SDK window messages and remembers settings **per series (per folder)**:
 
-- **Two intro modes**
-  - `op_end` only: on episode open, jump straight to it (cold open + OP together)
-  - `op_start` + `op_end`: the cold open plays normally; once playback naturally crosses `op_start`, jump to `op_end` (skips only the OP song)
-- **Outro**: when playback naturally crosses `ed_start`, jump to `ed_end`. Point `ed_end` at the preview to keep next-episode previews and end cards; leave it empty to advance straight to the next episode
-- Episodes with different structure? `[Show\05]` sections override per episode
+- **A show needs exactly two times**: the intro time (`op_end`) and the outro time (`ed_start`), captured live with global hotkeys — no manual typing
+- Advanced options: keep the cold open (skip only the OP), keep previews/end cards, per-episode overrides
 - Manual seeking and resume-from-middle never trigger a skip; a resume position past the intro is never rewound
 
 ## Requirements
@@ -33,19 +30,37 @@ Installs to `%LOCALAPPDATA%\PotSkip` by default and registers autostart (Startup
 
 ## Usage
 
+A show needs exactly two times: the intro time and the outro time.
+
 Play episode 1 of a new show (episodes before `apply_from` are never auto-skipped) and tap the global hotkeys:
 
 | Moment | Key | Writes |
 |---|---|---|
-| OP just ended | `Ctrl+Alt+1` | `op_end` |
-| ED just started | `Ctrl+Alt+2` | `ed_start` |
-| ED just ended (only if you want to keep the preview) | `Ctrl+Alt+3` | `ed_end` |
+| OP just ended | `Ctrl+Alt+1` | `op_end` (intro time) |
+| ED just started | `Ctrl+Alt+2` | `ed_start` (outro time) |
 
-A tray balloon confirms each capture; values are written to `skip.ini` under the show's section automatically. From episode 2 on, everything is automatic. `Ctrl+Alt+0` pauses/resumes; the tray icon menu can quit the daemon; config edits apply instantly.
+A tray balloon confirms each capture; values are written to `skip.ini` under the show's section automatically. From episode 2 on: every open lands right on the feature presentation, and the outro is skipped to the next episode. `Ctrl+Alt+0` pauses/resumes; the tray icon menu can quit the daemon; config edits apply instantly.
 
 ## Configuration
 
-See [config/skip.example.ini](config/skip.example.ini) for the full annotated template. Keys: `enabled`, `apply_from`, `paths.root`, `op_start`, `op_end`, `ed_start`, `ed_end`, plus `[Show\NN]` per-episode overrides. Times accept seconds or `h:mm:ss`.
+A show needs only two lines:
+
+```ini
+[My Show]
+op_end = 2:15      ; intro time: every open jumps here (feature start)
+ed_start = 22:10   ; outro time: from here, skip to the end
+```
+
+Times accept seconds or `h:mm:ss`. Edits apply instantly.
+
+### Advanced options (all optional)
+
+- **Keep the cold open** (skip only the OP): add `op_start` — the cold open plays normally, and once playback crosses it the daemon jumps to `op_end`
+- **Keep the preview / end card**: add `ed_end` (hotkey `Ctrl+Alt+3`); after `ed_start` the daemon lands there instead of the file end
+- **Per-episode overrides**: `[My Show\12]` matches files whose name contains `12`
+- **`apply_from`**: first episode to auto-skip (default `2`); **`paths.root`**: used to name sections captured by hotkeys
+
+See [config/skip.example.ini](config/skip.example.ini) for the fully annotated template.
 
 ## How it works
 
