@@ -46,8 +46,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 | 时刻 | 按键 | 写入 |
 |---|---|---|
-| OP 刚结束 | `Ctrl+Alt+I` | `op_end`（片头时间）——**I** = Intro，片头到此为止 |
-| ED 刚开始 | `Ctrl+Alt+O` | `ed_start`（片尾时间）——**O** = Outro，片尾从这开始 |
+| OP 刚结束 | `Ctrl+Alt+O` | `op_end`（片头时间）——**O** = OP，OP 到此为止 |
+| ED 刚开始 | `Ctrl+Alt+E` | `ed_start`（片尾时间）——**E** = ED，ED 从这开始 |
 
 热键是全局的，播放器在后台也有效；按键后托盘气泡确认，数值自动写入 `skip.ini` 对应剧集段，**全程不用手输数字**。从第 2 集起自动生效：打开/换集直接落在正片，播到片尾就跳过进下一集。
 
@@ -73,7 +73,7 @@ ed_start = 22:10   ; 片尾时间：播到这里就跳过片尾，进下一集
   ```ini
   op_start = 0:45
   ```
-- **保留片尾彩蛋**（ED 后的预告/end card）：加 `ed_end`，越过 `ed_start` 后跳到它而不是集尾；热键 `Ctrl+Alt+Shift+O` 记录
+- **保留片尾彩蛋**（ED 后的预告/end card）：加 `ed_end`，越过 `ed_start` 后跳到它而不是集尾；热键 `Ctrl+Alt+Shift+E` 记录
   ```ini
   ed_end = 23:20
   ```
@@ -83,9 +83,9 @@ ed_start = 22:10   ; 片尾时间：播到这里就跳过片尾，进下一集
 - **自定义快捷键**：与其他程序冲突时，在 `[hotkeys]` 段改（改完重启守护）：
   ```ini
   [hotkeys]
-  op_end = Ctrl+Alt+I
-  ed_start = Ctrl+Alt+O
-  ed_end = Ctrl+Alt+Shift+O
+  op_end = Ctrl+Alt+O
+  ed_start = Ctrl+Alt+E
+  ed_end = Ctrl+Alt+Shift+E
   toggle = Ctrl+Alt+S
   ```
   支持 Ctrl/Alt/Shift/Win 组合 字母/数字/F1-F24。注册失败（被别的程序占用）会写进日志。

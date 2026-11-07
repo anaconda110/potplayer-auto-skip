@@ -13,9 +13,9 @@
 # Manual seeks and resume-from-middle never trigger a skip.
 #
 # Global hotkeys (player does not need focus; configurable in [hotkeys]):
-#   Ctrl+Alt+I          capture current time as op_end   (I = Intro)
-#   Ctrl+Alt+O          capture current time as ed_start (O = Outro)
-#   Ctrl+Alt+Shift+O    capture current time as ed_end   (other end of the outro)
+#   Ctrl+Alt+O          capture current time as op_end   (O = OP ends here)
+#   Ctrl+Alt+E          capture current time as ed_start (E = ED starts here)
+#   Ctrl+Alt+Shift+E    capture current time as ed_end   (other end of the ED)
 #   Ctrl+Alt+S          pause/resume skipping            (S = Skip)
 # Tray icon: pause/resume, quit. Config: skip.ini next to this file (hot reload;
 # hotkey changes need a restart).
@@ -297,7 +297,7 @@ function Get-EpisodeNo([string]$path) {
 }
 
 # ---------- Hotkeys ----------
-# Parse a "Ctrl+Alt+I" style spec into @{ mods; vk } (RegisterHotKey parameters).
+# Parse a "Ctrl+Alt+O" style spec into @{ mods; vk } (RegisterHotKey parameters).
 # Returns $null when the spec is invalid. MOD_ALT=1 MOD_CONTROL=2 MOD_SHIFT=4
 # MOD_WIN=8 MOD_NOREPEAT=0x4000.
 function ConvertTo-Hotkey([string]$spec) {
@@ -331,9 +331,9 @@ function ConvertTo-Hotkey([string]$spec) {
 # the mnemonic defaults. Returns a list of @{ id; action; spec; mods; vk }.
 function Get-HotkeySpecs([hashtable]$ini) {
     $defaults = @{
-        op_end = 'Ctrl+Alt+I'          # I = Intro: mark where the intro ends
-        ed_start = 'Ctrl+Alt+O'        # O = Outro: mark where the outro starts
-        ed_end = 'Ctrl+Alt+Shift+O'    # the other end of the outro
+        op_end = 'Ctrl+Alt+O'          # O = OP: mark where the OP ends
+        ed_start = 'Ctrl+Alt+E'        # E = ED: mark where the ED starts
+        ed_end = 'Ctrl+Alt+Shift+E'    # the other end of the ED
         toggle = 'Ctrl+Alt+S'          # S = Skip: pause/resume
     }
     $sec = @{}
