@@ -1,0 +1,5 @@
+# Local runtime artifacts
+skip.ini
+log.txt
+hwnd.txt
+*.log
