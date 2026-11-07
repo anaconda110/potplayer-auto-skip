@@ -12,12 +12,13 @@
 #                             ed_end (empty = near file end / next episode)
 # Manual seeks and resume-from-middle never trigger a skip.
 #
-# Global hotkeys (player does not need focus):
-#   Ctrl+Alt+1  capture current time as op_end
-#   Ctrl+Alt+2  capture current time as ed_start
-#   Ctrl+Alt+3  capture current time as ed_end
-#   Ctrl+Alt+0  pause/resume skipping
-# Tray icon: pause/resume, quit. Config: skip.ini next to this file (hot reload).
+# Global hotkeys (player does not need focus; configurable in [hotkeys]):
+#   Ctrl+Alt+I          capture current time as op_end   (I = Intro)
+#   Ctrl+Alt+O          capture current time as ed_start (O = Outro)
+#   Ctrl+Alt+Shift+O    capture current time as ed_end   (other end of the outro)
+#   Ctrl+Alt+S          pause/resume skipping            (S = Skip)
+# Tray icon: pause/resume, quit. Config: skip.ini next to this file (hot reload;
+# hotkey changes need a restart).
 
 param(
     [string]$Ini,
@@ -295,6 +296,61 @@ function Get-EpisodeNo([string]$path) {
     return 0
 }
 
+# ---------- Hotkeys ----------
+# Parse a "Ctrl+Alt+I" style spec into @{ mods; vk } (RegisterHotKey parameters).
+# Returns $null when the spec is invalid. MOD_ALT=1 MOD_CONTROL=2 MOD_SHIFT=4
+# MOD_WIN=8 MOD_NOREPEAT=0x4000.
+function ConvertTo-Hotkey([string]$spec) {
+    if ([string]::IsNullOrWhiteSpace($spec)) { return $null }
+    $mods = 0x4000
+    $vk = 0
+    foreach ($p in ($spec.Trim().Split('+') | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ })) {
+        switch ($p) {
+            'ctrl' { $mods = $mods -bor 0x2 }
+            'alt' { $mods = $mods -bor 0x1 }
+            'shift' { $mods = $mods -bor 0x4 }
+            'win' { $mods = $mods -bor 0x8 }
+            default {
+                if ($p -match '^[a-z]$') {
+                    $vk = [int][char]($p.ToUpper()) - 65 + 0x41
+                } elseif ($p -match '^[0-9]$') {
+                    $vk = [int]$p + 0x30
+                } elseif ($p -match '^f([1-9]|1[0-9]|2[0-4])$') {
+                    $vk = 0x6F + [int]$Matches[1]
+                } else {
+                    return $null
+                }
+            }
+        }
+    }
+    if ($vk -eq 0) { return $null }
+    return @{ mods = $mods; vk = $vk; spec = $spec.Trim() }
+}
+
+# Resolve the four hotkeys from the [hotkeys] ini section, falling back to
+# the mnemonic defaults. Returns a list of @{ id; action; spec; mods; vk }.
+function Get-HotkeySpecs([hashtable]$ini) {
+    $defaults = @{
+        op_end = 'Ctrl+Alt+I'          # I = Intro: mark where the intro ends
+        ed_start = 'Ctrl+Alt+O'        # O = Outro: mark where the outro starts
+        ed_end = 'Ctrl+Alt+Shift+O'    # the other end of the outro
+        toggle = 'Ctrl+Alt+S'          # S = Skip: pause/resume
+    }
+    $sec = @{}
+    if ($ini -and $ini['hotkeys']) { $sec = $ini['hotkeys'] }
+    $out = @()
+    $id = 1
+    foreach ($action in @('op_end', 'ed_start', 'ed_end', 'toggle')) {
+        $spec = $defaults[$action]
+        if ($sec[$action.ToLower()]) { $spec = $sec[$action.ToLower()] }
+        $hk = ConvertTo-Hotkey $spec
+        if (-not $hk) { $hk = ConvertTo-Hotkey $defaults[$action] }
+        $out += @{ id = $id; action = $action; spec = $hk.spec; mods = $hk.mods; vk = $hk.vk }
+        $id++
+    }
+    return $out
+}
+
 # ---------- 状态 ----------
 $script:Pot = [IntPtr]::Zero
 $script:St = $null
@@ -339,22 +395,22 @@ $script:Icon.Visible = $true
 $form = New-Object SkipForm
 [void]$form.Handle
 
+# resolve hotkeys once at startup ([hotkeys] section overrides the defaults;
+# edits to hotkeys require a daemon restart)
+$script:Hotkeys = Get-HotkeySpecs (Read-IniFile $script:IniPath)
+$script:HotkeyByAction = @{}
+foreach ($hk in $script:Hotkeys) { $script:HotkeyByAction[$hk.action] = $hk }
+$toggleSpec = $script:HotkeyByAction['toggle'].spec
+
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
-[void]$menu.Items.Add('暂停/恢复自动跳过 (Ctrl+Alt+0)', $null, { param($s, $e) Toggle-Enabled })
+[void]$menu.Items.Add(('暂停/恢复自动跳过 ({0})' -f $toggleSpec), $null, { param($s, $e) Toggle-Enabled })
 $menu.Items.Add('-') | Out-Null
 [void]$menu.Items.Add('退出', $null, { param($s, $e) [System.Windows.Forms.Application]::Exit() })
 $script:Icon.ContextMenuStrip = $menu
 
-$MOD_ALT_CONTROL_NOREPEAT = 0x1 -bor 0x2 -bor 0x4000
-$hotkeys = @(
-    @{ id = 1; vk = 0x31 }  # Ctrl+Alt+1
-    @{ id = 2; vk = 0x32 }  # Ctrl+Alt+2
-    @{ id = 3; vk = 0x33 }  # Ctrl+Alt+3
-    @{ id = 4; vk = 0x30 }  # Ctrl+Alt+0
-)
-foreach ($hk in $hotkeys) {
-    if (-not [SkipForm]::RegisterHotKey($form.Handle, $hk.id, $MOD_ALT_CONTROL_NOREPEAT, $hk.vk)) {
-        Write-Log ('hotkey-register-failed: id=' + $hk.id)
+foreach ($hk in $script:Hotkeys) {
+    if (-not [SkipForm]::RegisterHotKey($form.Handle, $hk.id, $hk.mods, $hk.vk)) {
+        Write-Log ('hotkey-register-failed: {0} ({1}) - key may be taken by another app, change [hotkeys] in skip.ini' -f $hk.spec, $hk.action)
     }
 }
 
@@ -366,23 +422,23 @@ if ($WriteHwndFile) {
 $form.add_Hotkey({
     param($id)
     try {
-        if ($id -eq 4) { Toggle-Enabled; return }
-        if ($id -ge 1 -and $id -le 3) {
-            $path = $script:LastPath
-            $cur = $script:LastCurMs
-            if (-not $path -or $cur -lt 0) {
-                Show-Balloon 'PotPlayer 跳过守护' '未检测到正在播放的文件'
-                return
-            }
-            $sec = Match-SeriesSection $path
-            if (-not $sec) { $sec = Get-SeriesName $path }
-            $val = [math]::Round($cur / 100.0) / 10.0
-            $key = @{ 1 = 'op_end'; 2 = 'ed_start'; 3 = 'ed_end' }[$id]
-            Save-IniValue $script:IniPath $sec $key ('{0:0.0}' -f $val)
-            Get-Rules
-            Show-Balloon '已记录' ('[{0}] {1} = {2}' -f $sec, $key, (Format-Sec $val))
-            Write-Log ('capture: [{0}] {1} = {2}s  <- {3}' -f $sec, $key, $val, [IO.Path]::GetFileName($path))
+        $hk = $script:Hotkeys | Where-Object { $_.id -eq [int]$id } | Select-Object -First 1
+        if (-not $hk) { return }
+        if ($hk.action -eq 'toggle') { Toggle-Enabled; return }
+        $path = $script:LastPath
+        $cur = $script:LastCurMs
+        if (-not $path -or $cur -lt 0) {
+            Show-Balloon 'PotPlayer 跳过守护' '未检测到正在播放的文件'
+            return
         }
+        $sec = Match-SeriesSection $path
+        if (-not $sec) { $sec = Get-SeriesName $path }
+        $val = [math]::Round($cur / 100.0) / 10.0
+        $key = $hk.action
+        Save-IniValue $script:IniPath $sec $key ('{0:0.0}' -f $val)
+        Get-Rules
+        Show-Balloon '已记录' ('[{0}] {1} = {2}' -f $sec, $key, (Format-Sec $val))
+        Write-Log ('capture: [{0}] {1} = {2}s  <- {3}' -f $sec, $key, $val, [IO.Path]::GetFileName($path))
     } catch { Write-Log ('hotkey-error: ' + $_.Exception.Message) }
 })
 
@@ -517,7 +573,7 @@ $timer.Start()
 Write-Log ('daemon-start: ini=' + $script:IniPath)
 if ($script:GlobalEnabled) { $tip = '已启用' } else { $tip = '已暂停' }
 $script:Icon.Text = ('PotPlayer 跳过守护 · {0}' -f $tip)
-Show-Balloon 'PotPlayer 跳过守护' ('已启动（{0}）。看番时 Ctrl+Alt+1/2/3 校准片头片尾。' -f $tip)
+Show-Balloon 'PotPlayer 跳过守护' ('已启动（{0}）。校准热键：{1} 片头 / {2} 片尾。' -f $tip, $script:HotkeyByAction['op_end'].spec, $script:HotkeyByAction['ed_start'].spec)
 
 # 无主窗体消息泵（message-only 窗体不能作 Run(form) 的主窗体，会立即返回）
 Write-Log 'pre-run'

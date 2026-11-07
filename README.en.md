@@ -36,10 +36,10 @@ Play episode 1 of a new show (episodes before `apply_from` are never auto-skippe
 
 | Moment | Key | Writes |
 |---|---|---|
-| OP just ended | `Ctrl+Alt+1` | `op_end` (intro time) |
-| ED just started | `Ctrl+Alt+2` | `ed_start` (outro time) |
+| OP just ended | `Ctrl+Alt+I` | `op_end` (intro time) — **I** = Intro |
+| ED just started | `Ctrl+Alt+O` | `ed_start` (outro time) — **O** = Outro |
 
-A tray balloon confirms each capture; values are written to `skip.ini` under the show's section automatically. From episode 2 on: every open lands right on the feature presentation, and the outro is skipped to the next episode. `Ctrl+Alt+0` pauses/resumes; the tray icon menu can quit the daemon; config edits apply instantly.
+A tray balloon confirms each capture; values are written to `skip.ini` under the show's section automatically. From episode 2 on: every open lands right on the feature presentation, and the outro is skipped to the next episode. `Ctrl+Alt+S` pauses/resumes; the tray icon menu can quit the daemon; config edits apply instantly.
 
 ## Configuration
 
@@ -56,9 +56,18 @@ Times accept seconds or `h:mm:ss`. Edits apply instantly.
 ### Advanced options (all optional)
 
 - **Keep the cold open** (skip only the OP): add `op_start` — the cold open plays normally, and once playback crosses it the daemon jumps to `op_end`
-- **Keep the preview / end card**: add `ed_end` (hotkey `Ctrl+Alt+3`); after `ed_start` the daemon lands there instead of the file end
+- **Keep the preview / end card**: add `ed_end` (hotkey `Ctrl+Alt+Shift+O`); after `ed_start` the daemon lands there instead of the file end
 - **Per-episode overrides**: `[My Show\12]` matches files whose name contains `12`
 - **`apply_from`**: first episode to auto-skip (default `2`); **`paths.root`**: used to name sections captured by hotkeys
+- **Custom hotkeys**: on conflicts, set them in the `[hotkeys]` section (restart the daemon afterwards):
+  ```ini
+  [hotkeys]
+  op_end = Ctrl+Alt+I
+  ed_start = Ctrl+Alt+O
+  ed_end = Ctrl+Alt+Shift+O
+  toggle = Ctrl+Alt+S
+  ```
+  Ctrl/Alt/Shift/Win combined with letter/digit/F1-F24. Failed registrations (key taken by another app) are logged.
 
 See [config/skip.example.ini](config/skip.example.ini) for the fully annotated template.
 

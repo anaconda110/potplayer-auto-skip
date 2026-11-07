@@ -80,6 +80,24 @@ Save-IniValue $fixture 'Show C' 'op_end' '100'
 $ini3 = Read-IniFile $fixture
 Assert ((Get-TimeSeconds $ini3['Show C']['op_end']) -eq 100) 'Save-IniValue appends new section'
 
+# ---- hotkey spec parsing ----
+$hk = ConvertTo-Hotkey 'Ctrl+Alt+I'
+Assert ($null -ne $hk -and $hk.vk -eq 0x49 -and $hk.mods -band 0x2 -and $hk.mods -band 0x1) 'Ctrl+Alt+I -> vk I with Ctrl+Alt'
+Assert (-not ($hk.mods -band 0x4)) 'no Shift in Ctrl+Alt+I'
+$hk = ConvertTo-Hotkey 'Ctrl+Alt+Shift+O'
+Assert ($hk.vk -eq 0x4F -and ($hk.mods -band 0x4) -ne 0) 'Shift adds MOD_SHIFT'
+$hk = ConvertTo-Hotkey 'Ctrl+Alt+F5'
+Assert ($hk.vk -eq 0x74) 'F5 -> VK_F5'
+$hk = ConvertTo-Hotkey 'Alt+7'
+Assert ($hk.vk -eq 0x37) 'digit 7 -> VK_7'
+Assert ($null -eq (ConvertTo-Hotkey '')) 'empty spec rejected'
+Assert ($null -eq (ConvertTo-Hotkey 'Ctrl+Foo')) 'unknown key rejected'
+$specs = Get-HotkeySpecs @{}
+Assert ($specs.Count -eq 4 -and $specs[0].spec -eq 'Ctrl+Alt+I' -and $specs[3].action -eq 'toggle') 'default hotkey specs'
+$specs2 = Get-HotkeySpecs @{ hotkeys = @{ ed_start = 'Ctrl+Alt+9' } }
+Assert ($specs2[1].vk -eq 0x39) '[hotkeys] overrides a single action'
+Assert ($specs2[0].spec -eq 'Ctrl+Alt+I') 'other actions keep defaults'
+
 Remove-Item $tmp -Recurse -Force
 Write-Output ('{0} passed, {1} failed' -f $script:pass, $script:fail)
 if ($script:fail -gt 0) { exit 1 }
