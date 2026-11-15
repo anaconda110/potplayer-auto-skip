@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Windows PowerShell 5.1 on purpose: it is the runtime the daemon actually
+      # ships with (install.ps1 / autostart both launch powershell.exe). pwsh 7
+      # is NOT a supported test target today -- its Add-Type for WinForms fails
+      # with CS0012 (System.ComponentModel.Primitives unreferenced).
+      - name: Run test suite (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./tests/run-tests.ps1
